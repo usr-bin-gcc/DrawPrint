@@ -73,6 +73,15 @@ void gui_redraw(wimp_w handle)
       redraw.x1 = r.g.x1 - r.box.x0 + r.scx;
       redraw.y1 = r.g.y1 - r.box.y1 + r.scy;
 
+//      LOG("gui_redraw", "redraw: x0 = %d, y0 = %d, x1 = %d, y1 = %d",
+//         redraw.x0, redraw.y0, redraw.x1, redraw.y1);
+
+      LOG("gui_redraw", "r.box: x0 = %d, y0 = %d, x1 = %d, y1 = %d",
+         r.box.x0, r.box.y0, r.box.x1, r.box.y1);
+                                                 
+      LOG("gui_redraw", "r.g: x0 = %d, y0 = %d, x1 = %d, y1 = %d",
+         r.g.x0, r.g.y0, r.g.x1, r.g.y1);
+
       // redraw rectangle
 
       draw_error err;
@@ -235,7 +244,7 @@ static void print(void)
          position.dy = 0;
 
          wimpt_complain(err = print_giverectangle(0, &box, &transmat, &position, 
-            (int)0xFFFFFF00));
+            (int)0x00FF0000));
 
          if (err != NULL) LOG("print", "%s returned an error", 
                           "print_giverectangle");
@@ -246,26 +255,32 @@ static void print(void)
 
          draw_redrawstr r;
 
-         wimpt_complain(err = print_drawpage(1, 0, 0, &r.g, &more, &ident));
+         wimpt_complain(err = print_drawpage(1, 0, 0, &box, &more, &ident));
       
-        if (err != NULL) LOG("print", "%s returned an error", 
+         if (err != NULL) LOG("print", "%s returned an error", 
                              "print_drawpage");
 
-        LOG("print", "box: x0 = %d, y0 = %d, x1 = %d, y1 = %d", r.g.x0, r.g.y0,
-           r.g.x1, r.g.y1);                
-                   
-      // work-area coordinates of the update rectangle
+         r.box.x0 = r.g.x0 = box.x0;
+         r.box.y0 = r.g.y0 = box.y0;
+         r.box.x1 = r.g.x1 = box.x1;
+         r.box.y1 = r.g.y1 = box.y1;
+         r.scx    = 0;
+         r.scy    = 0;
 
+         LOG("print", "box: x0 = %d, y0 = %d, x1 = %d, y1 = %d", r.g.x0, r.g.y0,
+            r.g.x1, r.g.y1);                
+                   
 
          while (more)
          { 
             draw_error e;            
 
-LOG("print", "Mark %d", 1);
+            LOG("print", "Mark %d", 1);
 
-            draw_render_diag(diag, (draw_redrawstr*)&r, 1.0, &e);
+            //draw_render_diag(diag, &r, 1.0, &e);
 
-            wimpt_complain(err = print_getrectangle(&r.g, &more, &ident));
+            wimpt_complain(err = print_getrectangle((print_box*)&r.g, &more, 
+                                    &ident));
 
             if (err != NULL) LOG("print", "%s returned an error", 
                                 "print_getrectangle");
