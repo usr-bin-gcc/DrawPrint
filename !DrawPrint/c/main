@@ -1,0 +1,429 @@
+/*******************************************************************************
+
+File        : c.main
+
+Date        : Sunday 6th Februrary 2022
+
+Author      : Gavin Cawley
+
+Description : Program to demonstrate displaying and printing a !draw file, 
+              based on the !Hyper program distributed with the DDE to 
+              demonstrate toolbox programming.
+
+History     : 06/02/2022 - v0.01 - started work 
+
+*******************************************************************************/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+                 
+#include "wimp.h"
+#include "wimpt.h"
+#include "resspr.h"
+#include "baricon.h"
+#include "res.h"
+#include "event.h"
+#include "menu.h"
+#include "dbox.h"
+#include "template.h"
+#include "win.h"
+#include "drawfdiag.h"
+#include "print.h"
+
+#define DEBUG 1
+
+#if DEBUG
+#include "logger.h"
+#else
+#define LOG(...)
+#endif
+   
+#define APP_NAME "DrawPrint"
+#define MENU_ITEMS ">Info,Print,Quit"
+                    
+#define IMENU_INFO  1
+#define IMENU_PRINT 2
+#define IMENU_QUIT  3
+
+menu imenu;
+wimp_w gui_handle;
+
+draw_diag *diag = NULL;
+
+
+void gui_redraw(wimp_w handle)
+{
+   BOOL more;
+ 
+   wimp_redrawstr r;
+
+   r.w = handle;
+
+   wimp_box redraw;
+
+   wimpt_noerr(wimp_redraw_wind(&r, &more));   
+            
+   while(more)
+   {                   
+      // work-area coordinates of the update rectangle
+
+      redraw.x0 = r.g.x0 - r.box.x0 + r.scx;
+      redraw.y0 = r.g.y0 - r.box.y1 + r.scy;
+      redraw.x1 = r.g.x1 - r.box.x0 + r.scx;
+      redraw.y1 = r.g.y1 - r.box.y1 + r.scy;
+
+      // redraw rectangle
+
+      draw_error err;
+
+      draw_render_diag(diag, (draw_redrawstr*)&r, 1.0, &err);
+                                         
+      // see if there is another rectange to redraw
+
+      wimp_get_rectangle(&r, &more);
+   }        
+}
+
+void gui_open(wimp_openstr *openstr)
+{  
+   wimpt_noerr(wimp_open_wind(openstr));
+}
+
+void gui_eventHandler(wimp_eventstr *e, void *handle)
+{
+   switch(e->e)
+   {
+      case wimp_EREDRAW:
+      {
+         gui_redraw(e->data.o.w);
+      
+         break;
+      }
+      case wimp_EOPEN:   // maximise or minimise window 
+      {
+         gui_open(&(e->data.o));
+      
+         break;
+      }
+      case wimp_ECLOSE:   // close window
+      {
+         wimpt_noerr(wimp_close_wind(e->data.o.w));
+       
+         break;
+      }
+   }
+}
+           
+void gui_create(void)
+{                        
+   wimp_wind *window = template_syshandle("Window");
+
+   if (window == 0)
+   {
+      exit(EXIT_FAILURE);
+   }
+
+   if (wimpt_complain(wimp_create_wind(window, &gui_handle)) != 0)
+   {
+      exit(EXIT_FAILURE);
+   }
+
+   win_register_event_handler(gui_handle, gui_eventHandler, 0);
+}
+
+void gui_closeDown(void)
+{
+}
+
+void gui_force_redraw(void)
+{
+   wimp_redrawstr r;
+
+   r.w      = gui_handle;
+   r.box.x0 = 0;
+   r.box.y0 = -1024;
+   r.box.x1 = +1024;
+   r.box.y1 = 0;
+
+   wimp_force_redraw(&r);
+}
+
+static void info_about(void)
+{
+   dbox d = dbox_new("ProgInfo");
+
+   if (d != NULL)
+   {
+      dbox_show(d);        
+      dbox_fillin(d);       
+      dbox_dispose(&d);     
+   }
+}
+
+static menu ipremenuproc(void *handle)
+{
+   return imenu;
+}
+                  
+#define PDriver_Info 0x80140        
+#define OS_Find      0x0D
+
+static void print(void)
+{
+   os_regset regs;
+
+   // get info on printer
+               
+   print_infostr printInfo;
+
+   os_error *err = print_info(&printInfo);
+
+   if (err == NULL)     
+   {
+      LOG("print", "printer = %s : features = %#x", printInfo.description, 
+         printInfo.features);
+   
+      // open file
+
+      regs.r[0] = 0xCF;
+      regs.r[1] = (int) "printer:";
+
+      wimpt_complain(err = os_swix(OS_Find, &regs));
+
+      if (err != NULL) LOG("print", "%s returned an error", "OS_Find");
+                 
+      int job = regs.r[0];
+
+      // select the job      
+
+      int old; 
+
+      wimpt_complain(err = print_selectjob(job, "foo", &old));
+
+      LOG("print", "Job selected, old = %#x", old);     
+                                       
+      if (err != NULL) LOG("print", "%s returned an error", "print_selectjob");
+
+      wimpt_complain(err = print_currentjob(&job));
+
+      LOG("print", "Current job = %#x", job);     
+
+      if (err != NULL) LOG("print", "%s returned an error", "print_currentjob");
+                                              
+      if (TRUE)
+      {
+         // print the drawfile
+
+         print_box box;
+
+         box.x0 = 0;
+         box.y0 = 0;
+         box.x1 = 1526;
+         box.y1 = 1024;
+
+         print_transmatstr transmat;
+
+         transmat.xx = 1<<16;
+         transmat.xy = 0;
+         transmat.yx = 0;
+         transmat.yy = 1<<16;
+
+         print_positionstr position;
+
+         position.dx = 0;
+         position.dy = 0;
+
+         wimpt_complain(err = print_giverectangle(0, &box, &transmat, &position, 
+            (int)0xFFFFFF00));
+
+         if (err != NULL) LOG("print", "%s returned an error", 
+                          "print_giverectangle");
+
+         int ident;
+
+         BOOL more;
+
+         draw_redrawstr r;
+
+         wimpt_complain(err = print_drawpage(1, 0, 0, &r.g, &more, &ident));
+      
+        if (err != NULL) LOG("print", "%s returned an error", 
+                             "print_drawpage");
+
+        LOG("print", "box: x0 = %d, y0 = %d, x1 = %d, y1 = %d", r.g.x0, r.g.y0,
+           r.g.x1, r.g.y1);                
+                   
+      // work-area coordinates of the update rectangle
+
+
+         while (more)
+         { 
+            draw_error e;            
+
+LOG("print", "Mark %d", 1);
+
+            draw_render_diag(diag, (draw_redrawstr*)&r, 1.0, &e);
+
+            wimpt_complain(err = print_getrectangle(&r.g, &more, &ident));
+
+            if (err != NULL) LOG("print", "%s returned an error", 
+                                "print_getrectangle");
+         }
+      }
+
+      // printing complete
+
+      wimpt_complain(err = print_endjob(job));
+
+      LOG("print", "Job ended", "");
+
+      if (err != NULL) LOG("print", "%s returned an error", "print_endjob");
+   }
+   else
+   {
+      wimpt_complain(err);
+   }
+}
+
+static void imenuproc(void *handle, char *hit)
+{
+   switch (hit[0])  
+   {                
+      case IMENU_INFO:
+      {
+         info_about();
+
+         break;
+      }
+      case IMENU_PRINT:
+      {               
+         print();
+
+         break;
+      }
+      case IMENU_QUIT:
+      {
+         exit(EXIT_SUCCESS);
+
+         break;
+      }
+   }
+}
+
+static void icon_left_click(wimp_i icon)
+{
+   wimp_wstate win_state;
+
+   wimpt_complain(wimp_get_wind_state(gui_handle, &win_state));
+
+   gui_open(&(win_state.o));
+}
+                                 
+
+#define OS_File 0x08
+
+draw_diag* loadDrawFile(char* filename)
+{
+   os_regset regs;
+                        
+   // determine the size of the !draw file
+
+   regs.r[0] = 17; 
+   regs.r[1] = (int)filename;
+
+   wimpt_complain(os_swix(OS_File, &regs));
+
+   int size = regs.r[4];
+
+   LOG("loadDrawFile", "file size = %d", size);
+
+   // allocate memory for the draw file
+   
+   draw_diag* diag = (draw_diag*)malloc(sizeof(draw_diag) + size);
+
+   diag->data = sizeof(draw_diag) + (char*)diag;
+
+   // load the draw file into memory 
+
+   regs.r[0] = 16; 
+   regs.r[1] = (int)filename; 
+   regs.r[2] = (int)diag->data;
+   regs.r[3] = 0;
+
+   wimpt_complain(os_swix(OS_File, &regs));
+                                      
+   LOG("loadDrawFile", "Draw file has been loaded", 1);
+
+   // check that the drawfile is valid
+   
+   draw_error err;
+
+   if (draw_verify_diag(diag, &err))
+   {
+      LOG("loadDrawFile", "draw file %s valid", "is");
+
+      return diag;                    
+   }
+   else
+   {
+      LOG("loadDrawFile", "draw file %s valid", "is not");
+
+      return NULL;
+   }
+}
+
+int main(void)
+{                                         
+   wimpt_init(APP_NAME);
+
+   res_init(APP_NAME);   
+
+   template_init();              
+
+   dbox_init();     
+
+   gui_create();
+
+   drawfdiag_init();
+
+   baricon("!DrawPrint", (int)resspr_area(), icon_left_click);
+
+   imenu = menu_new(APP_NAME, MENU_ITEMS);
+                    
+   if (imenu == NULL)
+   {
+      return EXIT_FAILURE;
+   }
+
+   if (!event_attachmenumaker(win_ICONBAR, ipremenuproc, imenuproc, 0))
+   {
+      return EXIT_FAILURE;
+   }                    
+
+   // register icon menu and middle click handler 
+
+   if (!event_attachmenumaker(win_ICONBAR, ipremenuproc, imenuproc, 0))
+   {
+      return FALSE;
+   }               
+
+   // load drawfile
+
+   diag = loadDrawFile("DrawFile");
+
+   // main even processing loop
+
+   while (TRUE) 
+   {
+      event_process();
+   }
+                    
+   gui_closeDown();
+
+   wimp_closedown();
+
+   return EXIT_SUCCESS;
+}
+
+/******************************************************************************/

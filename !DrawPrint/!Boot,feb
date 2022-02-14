@@ -1,0 +1,8 @@
+| > !DrawPrint.!Boot
+|
+| DrawPrint - Render and print out a Draw file
+|
+set DrawPrint$Dir <Obey$Dir>
+set DrawPrint$Path <DrawPrint$Dir>
+
+IconSprites <Obey$Dir>.!Sprites22
