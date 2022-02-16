@@ -1,6 +1,6 @@
 %!PS-Adobe-2.0
 %%Creator: RISC OS PDriverPS 4.61
-%%CreationDate: 12:34:18 Tue,15 Feb 2022
+%%CreationDate: 17:07:50 Wed,16 Feb 2022
 %%Title: DrawPrint
 %%Pages: (atend)
 %%BoundingBox: (atend)
@@ -1263,7 +1263,7 @@ statusdict begin /manualfeed false store end
 %%PageBoundingBox: 0 0 611 410
 PDdict begin
 S
-0 MP 0 MP 595000 MP 842000 MP 
+18000 MP 23000 MP 577000 MP 819000 MP 
 PS
 S
 0 MP 0 MP T
@@ -1553,5 +1553,3 @@ end
 %%+ RO_Corpus.Bold.Oblique_ELatin1
 %%+ Courier-Bold
 %%+ RO_Corpus.Bold_ELatin1
-
-%%Docum
