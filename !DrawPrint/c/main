@@ -246,6 +246,11 @@ static void print(void)
          // printing complete
 
          wimpt_complain(err = print_endjob(job));
+
+         regs.r[0] = 0x00;
+         regs.r[1] = job;
+
+         wimpt_complain(err = os_swix(OS_Find, &regs));
       }
       else
       {
