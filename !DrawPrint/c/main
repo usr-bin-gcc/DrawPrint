@@ -247,15 +247,18 @@ static void print(void)
 
          wimpt_complain(err = print_endjob(job));
 
+         // close the file
+
          regs.r[0] = 0x00;
          regs.r[1] = job;
 
          wimpt_complain(err = os_swix(OS_Find, &regs));
-      }
-      else
-      {
-         wimpt_complain(err);
-      }   
+
+         // restore previous job
+
+         wimpt_complain(print_selectjob(old, NULL, &job));
+
+      }  
    }
 }
 
@@ -366,6 +369,8 @@ int main(void)
    {
       return EXIT_FAILURE;
    }               
+
+printf("%s", __func__);
 
    // load drawfile
 
